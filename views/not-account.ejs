@@ -1,0 +1,11 @@
+<a href = "/login">log in</a>
+<p>Not account</p>
+<p>ID: <%= user.id %></p>
+<p>First Name: <%= user.firstName %></p>
+<p>Last Name: <%= user.lastName %></p>
+<p>Most recent checkin:</p>
+<p>
+    <pre>&#9"id: <%=user.checkins.items[0].id%>"</pre>
+    <pre>&#9"venue: <%=user.checkins.items[0].venue.name%>"</pre>
+    <pre>&#9"address: <%=user.checkins.items[0].venue.location.address%>"</pre>
+</p>

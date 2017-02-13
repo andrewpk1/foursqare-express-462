@@ -1,0 +1,13 @@
+<a href = "/logout">log out</a>
+<p>ID: <%= user.id %></p>
+<p>First Name: <%= user.firstName %></p>
+<p>Last Name: <%= user.lastName %></p>
+<p>checkins:</p>
+<% for(var i=0; i<checkins.items.length; i++) {%>
+   <p>
+   		"Venue <%=i+1%>:"
+        <pre>&#9"id: <%=checkins.items[i].id%>"</pre>
+        <pre>&#9"venue: <%=checkins.items[i].venue.name%>"</pre>
+        <pre>&#9"address: <%=checkins.items[i].venue.location.address%>"</pre>
+   	</p>
+<% }%>
