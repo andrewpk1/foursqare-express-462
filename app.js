@@ -39,7 +39,7 @@ passport.deserializeUser(function(obj, done) {
 passport.use(new FoursquareStrategy({
     clientID: FOURSQUARE_CLIENT_ID,
     clientSecret: FOURSQUARE_CLIENT_SECRET,
-    callbackURL: "http://107.188.129.145:8080/auth/foursquare/callback"
+    callbackURL: "https://ec2-52-55-249-153.compute-1.amazonaws.com:8081/auth/foursquare/callback"
   },
   function(accessToken, refreshToken, profile, done) {
       var json = JSON.parse(profile._raw);
