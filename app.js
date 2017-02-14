@@ -67,7 +67,7 @@ passport.use(new FoursquareStrategy({
                   return done(err, user);
               });
           } else {
-              User.findOneAndUpdate({'id' : profile.id},{checkins: json.response.user.checkins}, function(err, user){
+              User.findOneAndUpdate({'id' : profile.id},{$set: {checkins: json.response.user.checkins}}, function(err, user){
                 console.log("updated user");
                 console.log(user);
                 return done(err, user);
