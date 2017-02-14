@@ -55,7 +55,6 @@ passport.use(new FoursquareStrategy({
           var completeURI = URI + query;
           console.log(completeURI);
           var body = '';
-          var json = '';
           https.get(completeURI, function(resp){
             resp.on("data", function(chunk) {
             body += chunk;
@@ -81,7 +80,7 @@ passport.use(new FoursquareStrategy({
                   return done(err, user);
               });
           } else {
-              User.findOneAndUpdate({'id' : profile.id}, json.response.user.checkins, function(err, user){
+              User.findOneAndUpdate({'id' : profile.id}, checkin, function(err, user){
                 return done(err, user);
               });
           }
