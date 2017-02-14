@@ -55,6 +55,7 @@ passport.use(new FoursquareStrategy({
           var completeURI = URI + query;
           console.log(completeURI);
           var body = '';
+          var checkin = null;
           https.get(completeURI, function(resp){
             resp.on("data", function(chunk) {
             body += chunk;
