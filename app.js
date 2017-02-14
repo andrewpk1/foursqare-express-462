@@ -55,15 +55,6 @@ passport.use(new FoursquareStrategy({
           var completeURI = URI + query;
           console.log(completeURI);
           var body = '';
-          var checkin = null;
-          https.get(completeURI, function(resp){
-            resp.on("data", function(chunk) {
-            body += chunk;
-            });
-            resp.on('end', function(){
-              var checkin = JSON.parse(body).response.checkins;
-            });
-          });
           //No user was found... so create a new user with values from Facebook (all the profile. stuff)
           if (!user) {
               console.log("creating new user");
