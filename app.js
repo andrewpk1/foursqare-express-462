@@ -148,7 +148,6 @@ app.get('/Users/:userId/account', ensureAuthenticated, function(req, res){
     resp.on('end', function(){
       var checkin = JSON.parse(body).response.checkins;
       User.findOneAndUpdate({'id' : req.user.id}, checkin, function(err, users){
-          console.log(err);
           return users;
       });
       res.render('account', {user: req.user, checkins: checkin});
