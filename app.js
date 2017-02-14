@@ -51,7 +51,7 @@ passport.use(new FoursquareStrategy({
               return done(err);
           }
           var URI = 'https://api.foursquare.com/v2/users/self/checkins';
-          var query = "?oauth_token=" + req.user.Token + '&v=20170209';
+          var query = "?oauth_token=" + accessToken + '&v=20170209';
           var completeURI = URI + query;
           console.log(completeURI);
           var body = '';
