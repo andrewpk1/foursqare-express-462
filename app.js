@@ -62,7 +62,7 @@ passport.use(new FoursquareStrategy({
                   id : json.response.user.id,
                   firstName: json.response.user.firstName,
                   lastName: json.response.user.lastName,
-                  checkins: checkin,
+                  checkins: json.response.user.checkins,
                   foursquare: profile._json,
                   Token: accessToken,
                   //now in the future searching on User.findOne({'facebook.id': profile.id } will match because of this next line
