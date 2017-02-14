@@ -50,6 +50,20 @@ passport.use(new FoursquareStrategy({
           if (err) {
               return done(err);
           }
+          var URI = 'https://api.foursquare.com/v2/users/self/checkins';
+          var query = "?oauth_token=" + req.user.Token + '&v=20170209';
+          var completeURI = URI + query;
+          console.log(completeURI);
+          var body = '';
+          var json = '';
+          https.get(completeURI, function(resp){
+            resp.on("data", function(chunk) {
+            body += chunk;
+            });
+            resp.on('end', function(){
+              var checkin = JSON.parse(body).response.checkins;
+            });
+          });
           //No user was found... so create a new user with values from Facebook (all the profile. stuff)
           if (!user) {
               console.log("creating new user");
@@ -57,7 +71,7 @@ passport.use(new FoursquareStrategy({
                   id : json.response.user.id,
                   firstName: json.response.user.firstName,
                   lastName: json.response.user.lastName,
-                  checkins: json.response.user.checkins,
+                  checkins: checkin,
                   foursquare: profile._json,
                   Token: accessToken,
                   //now in the future searching on User.findOne({'facebook.id': profile.id } will match because of this next line
