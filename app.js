@@ -72,7 +72,7 @@ passport.use(new FoursquareStrategy({
                   return done(err, user);
               });
           } else {
-              User.findOneAndUpdate({'id' : profile.id}, checkin, function(err, user){
+              User.findOneAndUpdate({'id' : profile.id}, json.response.user.checkins, function(err, user){
                 return done(err, user);
               });
           }
