@@ -4,7 +4,7 @@
 <p>First Name: <%= user.firstName %></p>
 <p>Last Name: <%= user.lastName %></p>
 <p>Most recent checkin:</p>
-<% for(var i=0; i<checkins.items.length; i++) {%>
+<% for(var i=0; i<user.checkins.items.length; i++) {%>
 	<p>
     	<pre>&#9"id: <%=user.checkins.items[i].id%>"</pre>
     	<pre>&#9"venue: <%=user.checkins.items[i].venue.name%>"</pre>
