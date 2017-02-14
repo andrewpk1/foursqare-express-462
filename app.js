@@ -218,7 +218,7 @@ function ensureAuthenticated(req, res, next) {
         return done(err);
              //No user was found... so create a new user with values from Facebook (all the profile. stuff)
       } else {
-          console.log(users);
+          console.log(users.checkins);
           res.render('not-account', {user: users});          
       }
     });
