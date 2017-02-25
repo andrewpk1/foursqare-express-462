@@ -44,55 +44,55 @@ passport.use(new FoursquareStrategy({
     //"https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/auth/foursquare/callback"
   },
   function(accessToken, refreshToken, profile, done) {
-      var json = JSON.parse(profile._raw);
-          //check user table for anyone with a facebook ID of profile.id
-      User.findOne({
-          'id': profile.id 
-      }, function(err, user) {
-          if (err) {
-              return done(err);
-          }
-          //No user was found... so create a new user with values from Facebook (all the profile. stuff)
-          if (!user) {
-              console.log("creating new user");
-              user = new User({
-                  id : json.response.user.id,
-                  firstName: json.response.user.firstName,
-                  lastName: json.response.user.lastName,
-                  checkins: json.response.user.checkins,
-                  foursquare: profile._json,
-                  Token: accessToken,
-                  UUID: uuid.v4(),
-                  seed : getRandomInt(0, 5) % 3 === 0,
-                  endpoint: '/Users/'+ json.response.user.id + '/rumors',
-                  rumors: [],
-                  //now in the future searching on User.findOne({'facebook.id': profile.id } will match because of this next line
-              });
-              //function goes here look in user controller
-              console.log(user.seed)
-              addNeighbor(user)
-              return "OK"
-          } else {
-              if(!user.UUID){
-                user.UUID = uuid.v4();
-                console.log(user.UUID);  
-              }
-              user.endpoint = '/Users/'+ json.response.user.id + '/rumors';
-              user.checkins = json.response.user.checkins;
-              console.log(user);
-              user.save(function(err){
-                if(err) console.log(err);
-                return done(err, user)
-            });
-          }
-      });
-    }
+    var json = JSON.parse(profile._raw);
+    //check user table for anyone with a facebook ID of profile.id
+    User.findOne({
+      'id': profile.id
+    }, function(err, user) {
+      if (err) {
+        return done(err);
+      }
+      //No user was found... so create a new user with values from Facebook (all the profile. stuff)
+      if (!user) {
+        console.log("creating new user");
+        user = new User({
+          id : json.response.user.id,
+          firstName: json.response.user.firstName,
+          lastName: json.response.user.lastName,
+          checkins: json.response.user.checkins,
+          foursquare: profile._json,
+          Token: accessToken,
+          UUID: uuid.v4(),
+          seed : getRandomInt(0, 5) % 3 === 0,
+          endpoint: '/Users/'+ json.response.user.id + '/rumors',
+          rumors: [],
+          //now in the future searching on User.findOne({'facebook.id': profile.id } will match because of this next line
+        });
+        //function goes here look in user controller
+        console.log(user.seed)
+        addNeighbor(user)
+        return "OK"
+      } else {
+        if(!user.UUID){
+          user.UUID = uuid.v4();
+          console.log(user.UUID);
+        }
+        user.endpoint = '/Users/'+ json.response.user.id + '/rumors';
+        user.checkins = json.response.user.checkins;
+        console.log(user);
+        user.save(function(err){
+          if(err) console.log(err);
+          return done(err, user)
+        });
+      }
+    });
+  }
 ));
 
 
 
 
-var app = express(); 
+var app = express();
 var options = {
   key: fs.readFileSync('./ssl/key.pem', 'utf8'),
   cert: fs.readFileSync('./ssl/cert.pem', 'utf8'),
@@ -128,62 +128,77 @@ var server = https.createServer(options, app).listen(8081, function(){
 
 
 app.get('/', function(req, res){
-         User.find({}, function(err, users) {
-            if (err) {
-                console.log(err);
-                return done(err);
-            //No user was found... so create a new user with values from Facebook (all the profile. stuff)
-            } else {
-                res.render('index1', { user: req.user, users: users });
-                //found user. Return
-            }
-        });
+  User.find({}, function(err, users) {
+    if (err) {
+      console.log(err);
+      return done(err);
+      //No user was found... so create a new user with values from Facebook (all the profile. stuff)
+    } else {
+      res.render('index1', { user: req.user, users: users });
+      //found user. Return
+    }
+  });
   //res.render('index', { user: req.user });
 });
 app.get('/Users/:userId/rumors', ensureAuthenticated, function(req, res){
   var myUser = null;
   User.findOne({'id': req.params.userId}, function(err, user){
-      user.save(function(err) {
+    user.save(function(err) {
       if (err) console.log(err);
     });
-      res.render('chat', {id: user.id, rumors: user.rumors})
+    res.render('chat', {id: user.id, rumors: user.rumors})
   })
 });
 
-app.post('/Users/:userId/rumors', ensureAuthenticated, function(req, res){
+function postRumors(req, res){
   //if the message coming in is a rumor do something
-  var rumor = req.body.rumor
-  var want = req.body.want
+  var rumor = req.body.rumor;
+  var want = req.body.want;
+  var userId = req.params.userId;
   if(rumor){
-
-  } else if(want){
-
+    postRumor(userId, rumor);
+  } else if(want) {
+    postWant(userId, want);
   } else {
-      User.findOne({'id': req.params.userId}, function(err, user){
-      var text = req.body.message
-      var originator = req.user.firstName
-      var maxSequence = -1;
-     
-      if(user.rumors.length > 0){
-        var maxSequence = user.rumors.filter(function(rumor) { return user.UUID == rumor.messageId.split(":")[0]})
-        .map(function(rumor){
-            return parseInt(rumor.messageId.split(":")[1])
-        }).reduce(function(a,b){return Math.max(a,b) ;})
-      }
-
-      var messageId = user.UUID + ":" + (maxSequence + 1);
-      user.rumors.push({
-          messageId: messageId, 
-          originator: originator, 
-          text: text,
-      })
-      user.save(function(err) {
-        if (err) console.log(err);
-        res.render('chat', {id: user.id, rumors: user.rumors})
-      });
-    })
+    createRumor(userId, req.body.message, req.user.firstName)
   }
-});
+}
+
+function postWant(userId, want) {
+  
+}
+
+function postRumor(userId, rumor) {
+  
+}
+
+function createRumor(userId, message, originator) {
+  User.findOne({'id': req.params.userId}, function(err, user){
+    var text = req.body.message
+    var originator = req.user.firstName
+    var maxSequence = -1;
+    
+    if(user.rumors.length > 0){
+      var maxSequence = user.rumors.filter(function(rumor) { return user.UUID == rumor.messageId.split(":")[0]})
+      .map(function(rumor){
+        return parseInt(rumor.messageId.split(":")[1])
+      }).reduce(function(a,b){return Math.max(a,b) ;})
+    }
+    
+    var messageId = user.UUID + ":" + (maxSequence + 1);
+    user.rumors.push({
+      messageId: messageId,
+      originator: originator,
+      text: text
+    })
+    user.save(function(err) {
+      if (err) console.log(err);
+      res.render('chat', {id: user.id, rumors: user.rumors})
+    });
+  })
+}
+
+app.post('/Users/:userId/rumors', ensureAuthenticated, postRumors);
 
 app.get('/Users/:userId/account', ensureAuthenticated, function(req, res){
   console.log("here I am");
@@ -206,10 +221,10 @@ app.get('/Users/:userId/account', ensureAuthenticated, function(req, res){
     resp.on('end', function(){
       var checkin = JSON.parse(body).response.checkins;
       User.findOneAndUpdate({'id' : req.user.id}, checkin, function(err, users){
-          return users;
+        return users;
       });
       res.render('account', {user: req.user, checkins: checkin});
-
+      
       json = JSON.parse(body);
     });
   })
@@ -236,7 +251,7 @@ app.get('/auth/foursquare',
 //   request.  If authentication fails, the user will be redirected back to the
 //   login page.  Otherwise, the primary route function function will be called,
 //   which, in this example, will redirect the user to the home page.
-app.get('/auth/foursquare/callback', 
+app.get('/auth/foursquare/callback',
   passport.authenticate('foursquare', { failureRedirect: '/login' }),
   function(req, res) {
     res.redirect('/');
@@ -256,32 +271,32 @@ app.listen(8080);
 //   the request will proceed.  Otherwise, the user will be redirected to the
 //   login page.
 function ensureAuthenticated(req, res, next) {
-  if (req.isAuthenticated()) { 
+  if (req.isAuthenticated()) {
     console.log(req.user.id);
     console.log(req.params.userId);
     if (req.user.id == req.params.userId) {
       return next();
-    } else { 
-        User.findOne({'id' : req.params.userId}, function(err, users) {
-          if (err) {
-            return done(err);
-             //No user was found... so create a new user with values from Facebook (all the profile. stuff)
-          } else {
-            console.log(users.checkins);
-            console.log("this one");
-            res.render('not-account', {user: users});          
+    } else {
+      User.findOne({'id' : req.params.userId}, function(err, users) {
+        if (err) {
+          return done(err);
+          //No user was found... so create a new user with values from Facebook (all the profile. stuff)
+        } else {
+          console.log(users.checkins);
+          console.log("this one");
+          res.render('not-account', {user: users});
         }
       });
     }
   } else {
-      //Replace req.user.id with the request id param
-      User.findOne({'id' : req.params.userId}, function(err, users) {
+    //Replace req.user.id with the request id param
+    User.findOne({'id' : req.params.userId}, function(err, users) {
       if (err) {
         return done(err);
-             //No user was found... so create a new user with values from Facebook (all the profile. stuff)
+        //No user was found... so create a new user with values from Facebook (all the profile. stuff)
       } else {
-          console.log(users.checkins);
-          res.render('not-account', {user: users});          
+        console.log(users.checkins);
+        res.render('not-account', {user: users});
       }
     });
   }
@@ -327,7 +342,7 @@ function addNeighbor(newUser){
       if (!users) return "Unable to get users."
       
       // Add one of the seeds as its neighbor
-
+      
       if(users.length > 0){
         var index = getRandomInt(0, users.length);
         var user = users[index]
@@ -342,7 +357,7 @@ function addNeighbor(newUser){
         newUser.seed = true;
       }
       if(!user){
-      // Wait until both users are saved
+        // Wait until both users are saved
         Promise.all([
           saveUser(newUser),
         ])
@@ -385,13 +400,13 @@ function saveUser(user) {
   });
 }
 
-setInterval(function(){ 
-    User.find({}, function(err, users) {
-      users.forEach(function(user) {
-        neighbor = user.neighbors[getRandomInt(0,user.neighbors.length)]                    
-        s = prepareMsg(state, q)       
-        <url> = "https://localhost:8081/" + neighbor.endpoint;
-        send (<url>, s)
-      })
+setInterval(function(){
+  User.find({}, function(err, users) {
+    users.forEach(function(user) {
+      neighbor = user.neighbors[getRandomInt(0,user.neighbors.length)]
+      s = prepareMsg(state, q)
+      <url> = "https://localhost:8081/" + neighbor.endpoint;
+      send (<url>, s)
     })
-  }, 3000);
+  })
+}, 3000);
