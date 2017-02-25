@@ -64,7 +64,7 @@ passport.use(new FoursquareStrategy({
                   Token: accessToken,
                   UUID: uuid.v4(),
                   seed : getRandomInt(0, 5) % 3 === 0,
-                  endpoint: '/User/'+ json.response.user.id + '/rumors',
+                  endpoint: '/Users/'+ json.response.user.id + '/rumors',
                   rumors: [],
                   //now in the future searching on User.findOne({'facebook.id': profile.id } will match because of this next line
               });
@@ -77,7 +77,7 @@ passport.use(new FoursquareStrategy({
                 user.UUID = uuid.v4();
                 console.log(user.UUID);  
               }
-              user.endpoint = '/User/'+ json.response.user.id + '/rumors';
+              user.endpoint = '/Users/'+ json.response.user.id + '/rumors';
               user.checkins = json.response.user.checkins;
               console.log(user);
               user.save(function(err){
@@ -151,29 +151,38 @@ app.get('/Users/:userId/rumors', ensureAuthenticated, function(req, res){
 });
 
 app.post('/Users/:userId/rumors', ensureAuthenticated, function(req, res){
-  User.findOne({'id': req.params.userId}, function(err, user){
-    var text = req.body.message
-    var originator = req.user.firstName
-    var maxSequence = -1;
-   
-    if(user.rumors.length > 0){
-      var maxSequence = user.rumors.filter(function(rumor) { return user.UUID == rumor.messageId.split(":")[0]})
-      .map(function(rumor){
-          return parseInt(rumor.messageId.split(":")[1])
-      }).reduce(function(a,b){return Math.max(a,b) ;})
-    }
+  //if the message coming in is a rumor do something
+  var rumor = req.body.rumor
+  var want = req.body.want
+  if(rumor){
 
-    var messageId = user.UUID + ":" + (maxSequence + 1);
-    user.rumors.push({
-        messageId: messageId, 
-        originator: originator, 
-        text: text,
+  } else if(want){
+
+  } else {
+      User.findOne({'id': req.params.userId}, function(err, user){
+      var text = req.body.message
+      var originator = req.user.firstName
+      var maxSequence = -1;
+     
+      if(user.rumors.length > 0){
+        var maxSequence = user.rumors.filter(function(rumor) { return user.UUID == rumor.messageId.split(":")[0]})
+        .map(function(rumor){
+            return parseInt(rumor.messageId.split(":")[1])
+        }).reduce(function(a,b){return Math.max(a,b) ;})
+      }
+
+      var messageId = user.UUID + ":" + (maxSequence + 1);
+      user.rumors.push({
+          messageId: messageId, 
+          originator: originator, 
+          text: text,
+      })
+      user.save(function(err) {
+        if (err) console.log(err);
+        res.render('chat', {id: user.id, rumors: user.rumors})
+      });
     })
-    user.save(function(err) {
-      if (err) console.log(err);
-      res.render('chat', {id: user.id, rumors: user.rumors})
-    });
-  })
+  }
 });
 
 app.get('/Users/:userId/account', ensureAuthenticated, function(req, res){
@@ -288,13 +297,13 @@ function addNeighbor(newUser){
       
       operations = []
       users.forEach(function(user) {
-        if (user.neighbors.indexOf(newUser.uuid) == -1) {
-          user.neighbors.push(newUser.uuid)
+        if (user.neighbors.indexOf(newUser.id) == -1) {
+          user.neighbors.push(newUser.id)
           operations.push(saveUser(user))
         }
-        if (newUser.neighbors.indexOf(user.uuid) == -1) {
+        if (newUser.neighbors.indexOf(user.id) == -1) {
           //user not in neighbors
-          newUser.neighbors.push(user.uuid)
+          newUser.neighbors.push(user.id)
           operations.push(saveUser(newUser))
         }
       })
@@ -324,9 +333,9 @@ function addNeighbor(newUser){
         var user = users[index]
         console.log(index)
         console.log(users)
-        newUser.neighbors.push(user.UUID)
+        newUser.neighbors.push(user.ID)
         // The seed user will have this new user as a neighbor
-        user.neighbors.push(newUser.UUID)
+        user.neighbors.push(newUser.ID)
       } else {
         console.log("no seeds, default to seed")
         //if there are no seeds yet, default this guy to seed.
@@ -374,3 +383,14 @@ function saveUser(user) {
     })
   });
 }
+/*
+setInterval(function(){ 
+    User.find({}, function(err, users) {
+      users.forEach(function(user) {
+      neighbor = user.neighbors[getRandomInt(0,user.neighbors.length)]                    
+      s = prepareMsg(state, q)       
+      <url> = "https://localhost:8081/" + neighbor.endpoint;
+      send (<url>, s)
+    })
+  })
+}, 3000);*/
