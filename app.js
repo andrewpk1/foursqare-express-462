@@ -10,7 +10,8 @@ var express = require('express')
   , session = require('express-session')
   , User = require('./models/user_model.js')
   , https = require('https')
-  , fs = require('fs');
+  , fs = require('fs')
+  , uuid = require('node-uuid');
 
 var FOURSQUARE_CLIENT_ID = "2YE3DQJGJ3HNVPUVAAHP1QMJX3ENVK5HX4ZDKIL5ARCB1VNJ"
 var FOURSQUARE_CLIENT_SECRET = "O2PWREEFRDL55ZZKF03NFWCQ1HVOT0NYJRIOBW0IVVA5W2X0";
@@ -39,7 +40,8 @@ passport.deserializeUser(function(obj, done) {
 passport.use(new FoursquareStrategy({
     clientID: FOURSQUARE_CLIENT_ID,
     clientSecret: FOURSQUARE_CLIENT_SECRET,
-    callbackURL: "https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/auth/foursquare/callback"
+    callbackURL: "https://localhost:8081/auth/foursquare/callback"
+    //"https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/auth/foursquare/callback"
   },
   function(accessToken, refreshToken, profile, done) {
       var json = JSON.parse(profile._raw);
@@ -60,18 +62,28 @@ passport.use(new FoursquareStrategy({
                   checkins: json.response.user.checkins,
                   foursquare: profile._json,
                   Token: accessToken,
+                  UUID: uuid.v4(),
+                  seed : getRandomInt(0, 5) % 3 === 0,
+                  endpoint: '/User/'+ json.response.user.id + '/rumors',
+                  rumors: [],
                   //now in the future searching on User.findOne({'facebook.id': profile.id } will match because of this next line
               });
-              user.save(function(err) {
-                  if (err) console.log(err);
-                  return done(err, user);
-              });
+              //function goes here look in user controller
+              console.log(user.seed)
+              addNeighbor(user)
+              return "OK"
           } else {
-              User.findOneAndUpdate({'id' : profile.id},{$set: {checkins: json.response.user.checkins}}, function(err, user){
-                console.log("updated user");
-                console.log(user);
-                return done(err, user);
-              });
+              if(!user.UUID){
+                user.UUID = uuid.v4();
+                console.log(user.UUID);  
+              }
+              user.endpoint = '/User/'+ json.response.user.id + '/rumors';
+              user.checkins = json.response.user.checkins;
+              console.log(user);
+              user.save(function(err){
+                if(err) console.log(err);
+                return done(err, user)
+            });
           }
       });
     }
@@ -127,6 +139,41 @@ app.get('/', function(req, res){
             }
         });
   //res.render('index', { user: req.user });
+});
+app.get('/Users/:userId/rumors', ensureAuthenticated, function(req, res){
+  var myUser = null;
+  User.findOne({'id': req.params.userId}, function(err, user){
+      user.save(function(err) {
+      if (err) console.log(err);
+    });
+      res.render('chat', {id: user.id, rumors: user.rumors})
+  })
+});
+
+app.post('/Users/:userId/rumors', ensureAuthenticated, function(req, res){
+  User.findOne({'id': req.params.userId}, function(err, user){
+    var text = req.body.message
+    var originator = req.user.firstName
+    var maxSequence = -1;
+   
+    if(user.rumors.length > 0){
+      var maxSequence = user.rumors.filter(function(rumor) { return user.UUID == rumor.messageId.split(":")[0]})
+      .map(function(rumor){
+          return parseInt(rumor.messageId.split(":")[1])
+      }).reduce(function(a,b){return Math.max(a,b) ;})
+    }
+
+    var messageId = user.UUID + ":" + (maxSequence + 1);
+    user.rumors.push({
+        messageId: messageId, 
+        originator: originator, 
+        text: text,
+    })
+    user.save(function(err) {
+      if (err) console.log(err);
+      res.render('chat', {id: user.id, rumors: user.rumors})
+    });
+  })
 });
 
 app.get('/Users/:userId/account', ensureAuthenticated, function(req, res){
@@ -230,4 +277,100 @@ function ensureAuthenticated(req, res, next) {
     });
   }
   //res.redirect('/login')
+}
+
+function addNeighbor(newUser){
+  if (newUser.seed) {
+    // Put all the other seeds as its neighbors and give me to them as a neighbor
+    User.find({ seed: true }, function(err, users) {
+      if (err) return done(err);
+      if (!users) return "Unable to get users."
+      
+      operations = []
+      users.forEach(function(user) {
+        if (user.neighbors.indexOf(newUser.uuid) == -1) {
+          user.neighbors.push(newUser.uuid)
+          operations.push(saveUser(user))
+        }
+        if (newUser.neighbors.indexOf(user.uuid) == -1) {
+          //user not in neighbors
+          newUser.neighbors.push(user.uuid)
+          operations.push(saveUser(newUser))
+        }
+      })
+      
+      Promise.all(operations)
+      .then(function(results) {
+        console.log(results)
+        // I send my own token here (don't worry about this).
+        // You will do res.send(...your view...)
+        return "OK";
+      })
+      .catch(function(err) {
+        console.error(err)
+        return err;
+      })
+    })
+  } else {
+    console.log("not a seed")
+    User.find({ seed: true}, function(err, users) {
+      if (err) return err;
+      if (!users) return "Unable to get users."
+      
+      // Add one of the seeds as its neighbor
+
+      if(users.length > 0){
+        var index = getRandomInt(0, users.length);
+        var user = users[index]
+        console.log(index)
+        console.log(users)
+        newUser.neighbors.push(user.UUID)
+        // The seed user will have this new user as a neighbor
+        user.neighbors.push(newUser.UUID)
+      } else {
+        console.log("no seeds, default to seed")
+        //if there are no seeds yet, default this guy to seed.
+        newUser.seed = true;
+      }
+      if(!user){
+      // Wait until both users are saved
+        Promise.all([
+          saveUser(newUser),
+        ])
+        .then(function(results) {
+          return results;
+        })
+        .catch(function(err) {
+          console.log(err)
+          return err;
+        })
+      } else {
+        Promise.all([
+          saveUser(newUser),
+          saveUser(user)
+        ])
+        .then(function(results) {
+          return results;
+        })
+        .catch(function(err) {
+          console.log(err)
+          return err;
+        })
+      }
+    })
+  }
+}
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min)) + min;
+}
+
+function saveUser(user) {
+  return new Promise(function(resolve, reject) {
+    user.save(function(err) {
+      if (err) return reject(err)
+      return resolve()
+    })
+  });
 }

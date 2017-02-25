@@ -1,0 +1,16 @@
+<form action="/Users/<%= id %>/rumors" method="post">
+    <input type="text" name="message" id="textField" />
+    <input type="submit" name="submit" value="Submit" />
+</form>
+
+<% for(var i=0; i<rumors.length; i++) {%>
+   <p>
+    	<pre>&#9"&#34<%=rumors[i].originator%>&#34: <%=rumors[i].text%>"</pre>
+   	</p>
+<% }%>
+
+<script type="text/javascript">
+function clearFields() {
+    document.getElementById("textField").value=""
+}
+</script>

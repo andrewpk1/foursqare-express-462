@@ -4,7 +4,7 @@ var mongoose = require('mongoose'),
 var config = {
     "USER" : "",
     "PASS" : "",
-    "HOST" : "ec2-184-73-46-211.compute-1.amazonaws.com",
+    "HOST" : "localhost",
     "PORT" : "27017",
     "DATABASE" : "userDB"
 }
@@ -31,12 +31,22 @@ var UserSchema = new mongoose.Schema({
         checkins: {},
         foursquare: {},
         Token: String,
+        UUID: String,
+        endpoint: String,
+        seed: {type: Boolean, default: false},
+        rumors: [ 
+                  { messageId: String, 
+                    originator: String, 
+                    text: String 
+                  } 
+               ],
+        neighbors: [String]
 
     });
 
 var User = mongoose.model('Users', UserSchema)
+
 /*User.remove({}, function(err) { 
    console.log('collection removed') 
 });*/
-
 module.exports = User;
