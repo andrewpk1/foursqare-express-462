@@ -369,6 +369,7 @@ function addNeighbor(newUser){
     })
   }
 }
+
 function getRandomInt(min, max) {
   min = Math.ceil(min);
   max = Math.floor(max);
@@ -383,14 +384,14 @@ function saveUser(user) {
     })
   });
 }
-/*
+
 setInterval(function(){ 
     User.find({}, function(err, users) {
       users.forEach(function(user) {
-      neighbor = user.neighbors[getRandomInt(0,user.neighbors.length)]                    
-      s = prepareMsg(state, q)       
-      <url> = "https://localhost:8081/" + neighbor.endpoint;
-      send (<url>, s)
+        neighbor = user.neighbors[getRandomInt(0,user.neighbors.length)]                    
+        s = prepareMsg(state, q)       
+        <url> = "https://localhost:8081/" + neighbor.endpoint;
+        send (<url>, s)
+      })
     })
-  })
-}, 3000);*/
+  }, 3000);
