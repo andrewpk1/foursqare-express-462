@@ -72,6 +72,7 @@ passport.use(new FoursquareStrategy({
         //function goes here look in user controller
         console.log(user.seed)
         addNeighbor(user,done)
+        return done(null, user)
       } else {
         if(!user.UUID){
           user.UUID = uuid.v4();
@@ -275,6 +276,9 @@ function addNeighbor(newUser, done){
           operations.push(saveUser(newUser))
         }
       })
+      if(users.length == 0){
+        operations.push(saveUser(newUser))
+      }
       Promise.all(operations)
       .then(function(results) {
         console.log(results)
