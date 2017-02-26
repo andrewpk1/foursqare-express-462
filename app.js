@@ -64,14 +64,14 @@ passport.use(new FoursquareStrategy({
           Token: accessToken,
           UUID: uuid.v4(),
           seed : getRandomInt(0, 5) % 3 === 0,
+          //seed: true,
           endpoint: '/Users/'+ json.response.user.id + '/rumors',
           rumors: [],
           //now in the future searching on User.findOne({'facebook.id': profile.id } will match because of this next line
         });
         //function goes here look in user controller
         console.log(user.seed)
-        addNeighbor(user)
-        return "OK"
+        addNeighbor(user,done)
       } else {
         if(!user.UUID){
           user.UUID = uuid.v4();
@@ -149,54 +149,6 @@ app.get('/Users/:userId/rumors', ensureAuthenticated, function(req, res){
     res.render('chat', {id: user.id, rumors: user.rumors})
   })
 });
-
-function postRumors(req, res){
-  //if the message coming in is a rumor do something
-  var rumor = req.body.rumor;
-  var want = req.body.want;
-  var userId = req.params.userId;
-  if(rumor){
-    postRumor(userId, rumor);
-  } else if(want) {
-    postWant(userId, want);
-  } else {
-    createRumor(userId, req.body.message, req.user.firstName)
-  }
-}
-
-function postWant(userId, want) {
-  
-}
-
-function postRumor(userId, rumor) {
-  
-}
-
-function createRumor(userId, message, originator) {
-  User.findOne({'id': req.params.userId}, function(err, user){
-    var text = req.body.message
-    var originator = req.user.firstName
-    var maxSequence = -1;
-    
-    if(user.rumors.length > 0){
-      var maxSequence = user.rumors.filter(function(rumor) { return user.UUID == rumor.messageId.split(":")[0]})
-      .map(function(rumor){
-        return parseInt(rumor.messageId.split(":")[1])
-      }).reduce(function(a,b){return Math.max(a,b) ;})
-    }
-    
-    var messageId = user.UUID + ":" + (maxSequence + 1);
-    user.rumors.push({
-      messageId: messageId,
-      originator: originator,
-      text: text
-    })
-    user.save(function(err) {
-      if (err) console.log(err);
-      res.render('chat', {id: user.id, rumors: user.rumors})
-    });
-  })
-}
 
 app.post('/Users/:userId/rumors', ensureAuthenticated, postRumors);
 
@@ -303,14 +255,15 @@ function ensureAuthenticated(req, res, next) {
   //res.redirect('/login')
 }
 
-function addNeighbor(newUser){
+function addNeighbor(newUser, done){
   if (newUser.seed) {
     // Put all the other seeds as its neighbors and give me to them as a neighbor
     User.find({ seed: true }, function(err, users) {
       if (err) return done(err);
-      if (!users) return "Unable to get users."
+      if (!users) return done("Unable to get users.")
       
       operations = []
+    // TODO: we are pushing ourselves into the neighbor.
       users.forEach(function(user) {
         if (user.neighbors.indexOf(newUser.id) == -1) {
           user.neighbors.push(newUser.id)
@@ -322,24 +275,23 @@ function addNeighbor(newUser){
           operations.push(saveUser(newUser))
         }
       })
-      
       Promise.all(operations)
       .then(function(results) {
         console.log(results)
         // I send my own token here (don't worry about this).
         // You will do res.send(...your view...)
-        return "OK";
+        return done(null,users);
       })
       .catch(function(err) {
         console.error(err)
-        return err;
+        return done(err);
       })
     })
   } else {
     console.log("not a seed")
     User.find({ seed: true}, function(err, users) {
-      if (err) return err;
-      if (!users) return "Unable to get users."
+      if (err) return done(err);
+      if (!users) return done("Unable to get users.")
       
       // Add one of the seeds as its neighbor
       
@@ -362,11 +314,11 @@ function addNeighbor(newUser){
           saveUser(newUser),
         ])
         .then(function(results) {
-          return results;
+          return done(null,users);
         })
         .catch(function(err) {
           console.log(err)
-          return err;
+          return done(err);
         })
       } else {
         Promise.all([
@@ -374,11 +326,11 @@ function addNeighbor(newUser){
           saveUser(user)
         ])
         .then(function(results) {
-          return results;
+          return done(null,users);
         })
         .catch(function(err) {
           console.log(err)
-          return err;
+          return done(err);
         })
       }
     })
@@ -393,14 +345,82 @@ function getRandomInt(min, max) {
 
 function saveUser(user) {
   return new Promise(function(resolve, reject) {
+    console.log("saving user:")
     user.save(function(err) {
+      console.log("returned")
       if (err) return reject(err)
       return resolve()
     })
   });
 }
 
-setInterval(function(){
+function postRumors(req, res){
+  //if the message coming in is a rumor do something
+  var rumor = req.body.rumor;
+  var want = req.body.want;
+  var userId = req.params.userId;
+  var promiseResult = null;
+  if(rumor){
+    promiseResult = postRumor(userId, rumor);
+  } else if(want) {
+    promiseResult = postWant(userId, want);
+  } else {
+    promiseResult = createRumor(userId, req.body.message, req.user.firstName)
+  }
+  promiseResult.then(function(result){
+      res.render('chat', result);
+    })
+    .catch(function(err){
+      console.log(err)
+  })
+}
+
+function postWant(userId, want) {
+  return new Promise(function(resolve,reject){
+
+  })
+}
+
+function postRumor(userId, rumor) {
+  return new Promise(function(resolve, reject){
+    User.findOne({'id': userId}, function(err, user){
+      user.rumors.filter()
+      user.rumors.push(rumor)
+      user.save(function(err) {
+        if (err) return reject(err);
+        return resolve({id: user.id, rumors: user.rumors})
+      })
+    })
+  })
+}
+
+function createRumor(userId, message, originator) {
+  return new Promise(function(resolve,reject){
+    User.findOne({'id': userId}, function(err, user){
+      var maxSequence = -1;
+      
+      if(user.rumors.length > 0){
+        var maxSequence = user.rumors.filter(function(rumor) { return user.UUID == rumor.messageId.split(":")[0]})
+        .map(function(rumor){
+          return parseInt(rumor.messageId.split(":")[1])
+        }).reduce(function(a,b){return Math.max(a,b) ;})
+      }
+      
+      var messageId = user.UUID + ":" + (maxSequence + 1);
+      user.rumors.push({
+        messageId: messageId,
+        originator: originator,
+        text: message
+      })
+      user.save(function(err) {
+        if (err) return reject(err);
+        return resolve({id: user.id, rumors: user.rumors})
+      });
+    })
+  })
+}
+
+/*setInterval(function(){
   User.find({}, function(err, users) {
     users.forEach(function(user) {
       neighbor = user.neighbors[getRandomInt(0,user.neighbors.length)]
@@ -409,4 +429,4 @@ setInterval(function(){
       send (<url>, s)
     })
   })
-}, 3000);
+}, 3000);*/
