@@ -4,7 +4,7 @@ var mongoose = require('mongoose'),
 var config = {
     "USER" : "",
     "PASS" : "",
-    "HOST" : "localhost",
+    "HOST" : "ec2-184-73-46-211.compute-1.amazonaws.com",
     "PORT" : "27017",
     "DATABASE" : "userDB"
 }
