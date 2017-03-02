@@ -31,8 +31,6 @@ passport.serializeUser(function(user, done) {
 passport.deserializeUser(function(obj, done) {
   done(null, obj);
 });
-
-
 // Use the FoursquareStrategy within Passport.
 //   Strategies in Passport require a `verify` function, which accept
 //   credentials (in this case, an accessToken, refreshToken, and Foursquare
@@ -41,7 +39,6 @@ passport.use(new FoursquareStrategy({
     clientID: FOURSQUARE_CLIENT_ID,
     clientSecret: FOURSQUARE_CLIENT_SECRET,
     callbackURL: "https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/auth/foursquare/callback"
-    //"https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/auth/foursquare/callback"
   },
   function(accessToken, refreshToken, profile, done) {
     var json = JSON.parse(profile._raw);
@@ -68,11 +65,16 @@ passport.use(new FoursquareStrategy({
           endpoint: '/Users/'+ json.response.user.id + '/rumors',
           rumors: [],
           //now in the future searching on User.findOne({'facebook.id': profile.id } will match because of this next line
-        });
-        //function goes here look in user controller
+        })
         console.log(user.seed)
         addNeighbor(user,done)
-        return done(null, user)
+        .then(function(results){
+          return done(null, user)
+        })
+        .catch(function(err){
+          return(err)
+        })
+        //function goes here look in user controller
       } else {
         if(!user.UUID){
           user.UUID = uuid.v4();
@@ -151,7 +153,7 @@ app.get('/Users/:userId/rumors', ensureAuthenticated, function(req, res){
   })
 });
 
-app.post('/Users/:userId/rumors', ensureAuthenticated, postRumors);
+app.post('/Users/:userId/rumors', postRumors);
 
 app.get('/Users/:userId/account', ensureAuthenticated, function(req, res){
   console.log("here I am");
@@ -257,89 +259,91 @@ function ensureAuthenticated(req, res, next) {
 }
 
 function addNeighbor(newUser, done){
-  if (newUser.seed) {
-    // Put all the other seeds as its neighbors and give me to them as a neighbor
-    User.find({ seed: true }, function(err, users) {
-      if (err) return done(err);
-      if (!users) return done("Unable to get users.")
-      
-      operations = []
-    // TODO: we are pushing ourselves into the neighbor.
-      users.forEach(function(user) {
-        if (newUser.id != user.id){
-          if (user.neighbors.indexOf(newUser.id) == -1) {
-            user.neighbors.push(newUser.id)
-            operations.push(saveUser(user))
+  return new Promise(function(resolve, reject) {
+    if (newUser.seed) {
+      // Put all the other seeds as its neighbors and give me to them as a neighbor
+      User.find({ seed: true }, function(err, users) {
+        if (err) return reject(err);
+        if (!users) return reject("Unable to get users.")
+        
+        operations = []
+      // TODO: we are pushing ourselves into the neighbor.
+        users.forEach(function(user) {
+          if (newUser.id != user.id){
+            if (user.neighbors.indexOf(newUser.id) == -1) {
+              user.neighbors.push(newUser.id)
+              operations.push(saveUser(user))
+            }
+            if (newUser.neighbors.indexOf(user.id) == -1) {
+              //user not in neighbors
+              newUser.neighbors.push(user.id)
+              operations.push(saveUser(newUser))
+            }
           }
-          if (newUser.neighbors.indexOf(user.id) == -1) {
-            //user not in neighbors
-            newUser.neighbors.push(user.id)
-            operations.push(saveUser(newUser))
-          }
+        })
+        if(users.length == 0){
+          operations.push(saveUser(newUser))
+        }
+        Promise.all(operations)
+        .then(function(results) {
+          console.log(results)
+          // I send my own token here (don't worry about this).
+          // You will do res.send(...your view...)
+          return resolve(null,users);
+        })
+        .catch(function(err) {
+          console.error(err)
+          return resject(err);
+        })
+      })
+    } else {
+      console.log("not a seed")
+      User.find({ seed: true}, function(err, users) {
+        if (err) return reject(err);
+        if (!users) return reject("Unable to get users.")
+        
+        // Add one of the seeds as its neighbor
+        if(users.length > 0){
+          var index = getRandomInt(0, users.length);
+          var user = users[index]
+          console.log(index)
+          console.log(users)
+          newUser.neighbors.push(user.id)
+          // The seed user will have this new user as a neighbor
+          user.neighbors.push(newUser.id)
+        } else {
+          console.log("no seeds, default to seed")
+          //if there are no seeds yet, default this guy to seed.
+          newUser.seed = true;
+        }
+        if(!user){
+          // Wait until both users are saved
+          Promise.all([
+            saveUser(newUser),
+          ])
+          .then(function(results) {
+            return resolve(null,users);
+          })
+          .catch(function(err) {
+            console.log(err)
+            return reject(err);
+          })
+        } else {
+          Promise.all([
+            saveUser(newUser),
+            saveUser(user)
+          ])
+          .then(function(results) {
+            return resolve(users);
+          })
+          .catch(function(err) {
+            console.log(err)
+            return reject(err);
+          })
         }
       })
-      if(users.length == 0){
-        operations.push(saveUser(newUser))
-      }
-      Promise.all(operations)
-      .then(function(results) {
-        console.log(results)
-        // I send my own token here (don't worry about this).
-        // You will do res.send(...your view...)
-        return done(null,users);
-      })
-      .catch(function(err) {
-        console.error(err)
-        return done(err);
-      })
-    })
-  } else {
-    console.log("not a seed")
-    User.find({ seed: true}, function(err, users) {
-      if (err) return done(err);
-      if (!users) return done("Unable to get users.")
-      
-      // Add one of the seeds as its neighbor
-      if(users.length > 0){
-        var index = getRandomInt(0, users.length);
-        var user = users[index]
-        console.log(index)
-        console.log(users)
-        newUser.neighbors.push(user.id)
-        // The seed user will have this new user as a neighbor
-        user.neighbors.push(newUser.id)
-      } else {
-        console.log("no seeds, default to seed")
-        //if there are no seeds yet, default this guy to seed.
-        newUser.seed = true;
-      }
-      if(!user){
-        // Wait until both users are saved
-        Promise.all([
-          saveUser(newUser),
-        ])
-        .then(function(results) {
-          return done(null,users);
-        })
-        .catch(function(err) {
-          console.log(err)
-          return done(err);
-        })
-      } else {
-        Promise.all([
-          saveUser(newUser),
-          saveUser(user)
-        ])
-        .then(function(results) {
-          return done(null,users);
-        })
-        .catch(function(err) {
-          console.log(err)
-          return done(err);
-        })
-      }
-    })
-  }
+    }
+  })
 }
 
 function getRandomInt(min, max) {
@@ -354,7 +358,11 @@ function saveUser(user) {
     user.save(function(err) {
       console.log("returned")
       if (err) return reject(err)
-      return resolve()
+      User.findOne({UUID: user.UUID}, function(error, newUser){
+        if(error) return reject(error)
+        if(!newUser) return reject("user not found")
+        return resolve(newUser)
+      })
     })
   });
 }
@@ -364,20 +372,62 @@ function postRumors(req, res){
   var rumor = req.body.rumor;
   var want = req.body.want;
   var userId = req.params.userId;
-  var promiseResult = null;
   if(rumor){
-    promiseResult = postRumor(userId, rumor);
+    User.findOne({
+      endpoint: rumor.EndPoint
+    }, function(err, user) {
+      if (!user) {
+        console.log("creating new user");
+        user = new User({
+          id: null,
+          firstName: rumor.Rumor.originator,
+          lastName: null,
+          checkins: {},
+          foursquare: {},
+          Token: null,
+          UUID: rumor.Rumor.messageId.split(':')[0],
+          seed : getRandomInt(0, 5) % 3 === 0,
+          //seed: true,
+          endpoint: rumor.EndPoint,
+          rumors: [rumor],
+        });
+        saveUser(user)
+        .then(function(newUser){
+          newUser.id = newUser._id;
+          console.log(newUser.seed)
+          addNeighbor(newUser,done)
+          return done(null, user)
+        })
+        .catch(function(error){
+          return done(error)
+        })
+      } else{
+          promiseResult
+          .then(function(result){
+              res.render('chat', result);
+          })
+          .catch(function(err){
+              console.log(err)
+          })
+        }
+    });
   } else if(want) {
-    promiseResult = postWant(userId, want);
-  } else {
-    promiseResult = createRumor(userId, req.body.message, req.user.firstName)
-  }
-  promiseResult.then(function(result){
+      promiseResult
+      .then(function(result){
+        res.render('chat', result);
+      })
+      .catch(function(err){
+        console.log(err)
+      })
+    } else {
+    createRumor(userId, req.body.message, req.user.firstName)
+    .then(function(result){
       res.render('chat', result);
     })
     .catch(function(err){
       console.log(err)
-  })
+    })
+  }
 }
 
 function postWant(userId, want) {
@@ -408,6 +458,7 @@ function postRumor(userId, rumor) {
   return new Promise(function(resolve, reject) {
     User.findOne({'id': userId}, function(err, user) {
       if (err) return reject(err);
+      //dynamically add the rumor
       if (!user) return reject(err);
       var alreadyExists = user.rumors.filter(function(Rumor) {
           return Rumor.messageId === rumor.messageId
@@ -432,9 +483,12 @@ function createRumor(userId, message) {
       var messageId = user.UUID + ":" + (maxSequence + 1);
       var originator = user.firstName
       user.rumors.push({
-        messageId: messageId,
-        originator: originator,
-        text: message
+        Rumor: { 
+          messageId: messageId,
+          originator: originator,
+          text: message
+        },
+        EndPoint: user.endpoint
       })
       user.save(function(err) {
         if (err) return reject(err);
@@ -460,37 +514,50 @@ function maxSequenceNumber(rumors, uuid) {
   .map(function(rumor) { return parseInt(rumor.messageId.split(":")[1]) })
   .reduce(function(a,b) { return Math.max(a,b); }, [])
 }
+function makeWant(user){
+  var Want = {
+    "Want": {},
+    "EndPoint": user.endpoint
+  }
+  uniqueItems(
+    user.rumors.map(function(rumor) { return parseInt(rumor.messageId.split(":")[0]) })
+  ).forEach(function(uuid) {
+    var maxSequenceNum = maxSequenceNumber(user.rumors, uuid)
+    Want.Want[uuid] = maxSequenceNum
+  });
+  return Want;
+}
 
-setInterval(function(){
+/*setInterval(function(){
   User.find({}, function(err, users) {
     users.forEach(function(user) {
       if (user.neighbors.length > 0 && user.rumors.length > 0) {
         var randomNeighborId = user.neighbors[getRandomInt(0,user.neighbors.length)]
+        var neighborUser = users.filter(function(neighbor){
+          return neighborUser.id == randomNeighborId;
+        })
         if (getRandomInt(0, 1) == 0) {
-          // Prepare a rumor
           console.log(user);
           var randomRumor = user.rumors[getRandomInt(0, user.rumors.length)]
           if(randomRumor){
-            postRumor(randomNeighborId, randomRumor)
-            .catch(function(err) { console.error(err) })
+            //send an HTTP request to the endpoint
+            https.post(neighbor.endpoint, randomRumor, function(resp){
+              resp.on('error', function(err){
+                console.error(err)
+              })
+            })
+          } else {
+            // Prepare a want
+            var want = makeWant(user);
+            //send an HTTP request to the endpoint
+            https.post(neighbor.endpoint, want, function(resp){
+              resp.on('error', function(err){
+                console.error(err) 
+              })
+            })
           }
-        } else {
-          // Prepare a want
-          var Want = {
-            "Want": {},
-            "Endpoint": user.endpoint
-          }
-          uniqueItems(
-            user.rumors.map(function(rumor) { return parseInt(rumor.messageId.split(":")[0]) })
-          ).forEach(function(uuid) {
-            var maxSequenceNum = maxSequenceNumber(user.rumors, uuid)
-            Want.Want[uuid] = maxSequenceNum
-          });
-          
-         resolveWant(randomNeighborId, Want)
-         .catch(function(err) { console.error(err) })
         }
       }
     })
   })
-}, 3000);
+}, 3000);*/
