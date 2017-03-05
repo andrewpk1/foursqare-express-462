@@ -34,19 +34,21 @@ var UserSchema = new mongoose.Schema({
         UUID: String,
         endpoint: String, 
         seed: {type: Boolean, default: false},
-        rumors: [ 
-                  { messageId: String, 
+        rumors: [ {
+                    Rumor: { messageId: String, 
                     originator: String, 
                     text: String 
-                  } 
-               ],
+                    },
+                EndPoint: String
+            }
+        ],
         neighbors: [String]
 
     });
 
 var User = mongoose.model('Users', UserSchema)
 
-User.remove({}, function(err) { 
+/*User.remove({}, function(err) { 
    console.log('collection removed') 
-});
+});*/
 module.exports = User;

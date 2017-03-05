@@ -1,16 +1,24 @@
-<form action="/Users/<%= id %>/rumors" method="post">
+<form action="/Users/rumors/<%= id %>" method="post">
     <input type="text" name="message" id="textField" />
     <input type="submit" name="submit" value="Submit" />
 </form>
+<form action="/Users/rumors/addAnonymous" method="post">
+    <input type="text" name="Name" id="textField2" />
+    <input type="text" name="Endpoint" id="textField3"
+    <input type="submit" name="submit1" value="Submit" />
+</form>
+
 
 <% for(var i=0; i<rumors.length; i++) {%>
    <p>
-    	<pre>&#9"&#34<%=rumors[i].originator%>&#34: <%=rumors[i].text%>"</pre>
+    	<pre>&#9"&#34<%=rumors[i].Rumor.originator%>&#34: <%=rumors[i].Rumor.text%>"</pre>
    	</p>
 <% }%>
 
 <script type="text/javascript">
 function clearFields() {
     document.getElementById("textField").value=""
+    document.getElementById("textField2").value=""
+    document.getElementById("textField3").value=""
 }
 </script>

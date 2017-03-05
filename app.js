@@ -38,7 +38,8 @@ passport.deserializeUser(function(obj, done) {
 passport.use(new FoursquareStrategy({
     clientID: FOURSQUARE_CLIENT_ID,
     clientSecret: FOURSQUARE_CLIENT_SECRET,
-    callbackURL: "https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/auth/foursquare/callback"
+    callbackURL: "https://localhost:8081/auth/foursquare/callback"
+    //"https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/auth/foursquare/callback"
   },
   function(accessToken, refreshToken, profile, done) {
     var json = JSON.parse(profile._raw);
@@ -62,11 +63,10 @@ passport.use(new FoursquareStrategy({
           UUID: uuid.v4(),
           seed : getRandomInt(0, 5) % 3 === 0,
           //seed: true,
-          endpoint: '/Users/'+ json.response.user.id + '/rumors',
+          endpoint: '/Users/rumors/' + json.response.user.id,
           rumors: [],
           //now in the future searching on User.findOne({'facebook.id': profile.id } will match because of this next line
         })
-        console.log(user.seed)
         addNeighbor(user,done)
         .then(function(results){
           return done(null, user)
@@ -78,11 +78,9 @@ passport.use(new FoursquareStrategy({
       } else {
         if(!user.UUID){
           user.UUID = uuid.v4();
-          console.log(user.UUID);
         }
         user.endpoint = '/Users/'+ json.response.user.id + '/rumors';
         user.checkins = json.response.user.checkins;
-        console.log(user);
         user.save(function(err){
           if(err) console.log(err);
           return done(err, user)
@@ -143,7 +141,7 @@ app.get('/', function(req, res){
   });
   //res.render('index', { user: req.user });
 });
-app.get('/Users/:userId/rumors', ensureAuthenticated, function(req, res){
+app.get('/Users/rumors/:userId', function(req, res){
   var myUser = null;
   User.findOne({'id': req.params.userId}, function(err, user){
     user.save(function(err) {
@@ -153,10 +151,37 @@ app.get('/Users/:userId/rumors', ensureAuthenticated, function(req, res){
   })
 });
 
-app.post('/Users/:userId/rumors', postRumors);
+app.post('/Users/rumors/:userId', postRumors);
+app.post('/Users/rumors/addAnonymous', function(req, res){
+  console.log("creating new anonymous user");
+  user = new User({
+    id: null,
+    firstName: req.body.Name,
+    lastName: null,
+    checkins: {},
+    foursquare: {},
+    Token: null,
+    UUID: uuid.v4(),
+    seed : getRandomInt(0, 5) % 3 === 0,
+    //seed: true,
+    endpoint: req.body.endpoint,
+    rumors: [],
+  });
+  saveUser(user)
+  .then(function(newUser){
+    newUser.id = newUser._id;
+    console.log(newUser.seed)
+    addNeighbor(newUser,done)
+    .then(function(user2){
+      return done(null, newUser)
+    })
+  })
+  .catch(function(error){
+    return done(error)
+  })
+}
 
-app.get('/Users/:userId/account', ensureAuthenticated, function(req, res){
-  console.log("here I am");
+app.get('/Users/account/:userId', ensureAuthenticated, function(req, res){
   var options = {
     hostname: 'api.foursquare.com',
     path: '/v2/users/self/checkins',
@@ -227,8 +252,6 @@ app.listen(8080);
 //   login page.
 function ensureAuthenticated(req, res, next) {
   if (req.isAuthenticated()) {
-    console.log(req.user.id);
-    console.log(req.params.userId);
     if (req.user.id == req.params.userId) {
       return next();
     } else {
@@ -237,8 +260,6 @@ function ensureAuthenticated(req, res, next) {
           return done(err);
           //No user was found... so create a new user with values from Facebook (all the profile. stuff)
         } else {
-          console.log(users.checkins);
-          console.log("this one");
           res.render('not-account', {user: users});
         }
       });
@@ -250,7 +271,6 @@ function ensureAuthenticated(req, res, next) {
         return done(err);
         //No user was found... so create a new user with values from Facebook (all the profile. stuff)
       } else {
-        console.log(users.checkins);
         res.render('not-account', {user: users});
       }
     });
@@ -286,7 +306,6 @@ function addNeighbor(newUser, done){
         }
         Promise.all(operations)
         .then(function(results) {
-          console.log(results)
           // I send my own token here (don't worry about this).
           // You will do res.send(...your view...)
           return resolve(null,users);
@@ -297,7 +316,6 @@ function addNeighbor(newUser, done){
         })
       })
     } else {
-      console.log("not a seed")
       User.find({ seed: true}, function(err, users) {
         if (err) return reject(err);
         if (!users) return reject("Unable to get users.")
@@ -306,13 +324,10 @@ function addNeighbor(newUser, done){
         if(users.length > 0){
           var index = getRandomInt(0, users.length);
           var user = users[index]
-          console.log(index)
-          console.log(users)
           newUser.neighbors.push(user.id)
           // The seed user will have this new user as a neighbor
           user.neighbors.push(newUser.id)
         } else {
-          console.log("no seeds, default to seed")
           //if there are no seeds yet, default this guy to seed.
           newUser.seed = true;
         }
@@ -354,9 +369,7 @@ function getRandomInt(min, max) {
 
 function saveUser(user) {
   return new Promise(function(resolve, reject) {
-    console.log("saving user:")
     user.save(function(err) {
-      console.log("returned")
       if (err) return reject(err)
       User.findOne({UUID: user.UUID}, function(error, newUser){
         if(error) return reject(error)
@@ -368,9 +381,8 @@ function saveUser(user) {
 }
 
 function postRumors(req, res){
-  //if the message coming in is a rumor do something
-  var rumor = req.body.rumor;
-  var want = req.body.want;
+  var rumor = req.body.Rumor;
+  var want = req.body.Want;
   var userId = req.params.userId;
   if(rumor){
     User.findOne({
@@ -396,15 +408,17 @@ function postRumors(req, res){
           newUser.id = newUser._id;
           console.log(newUser.seed)
           addNeighbor(newUser,done)
-          return done(null, user)
+          .then(function(user2){
+            return done(null, newUser)
+          })
         })
         .catch(function(error){
           return done(error)
         })
       } else{
-          promiseResult
+          postRumor(userId, rumor)
           .then(function(result){
-              res.render('chat', result);
+              res.render('chat', {id: result.id, rumors: result.rumors});
           })
           .catch(function(err){
               console.log(err)
@@ -412,20 +426,24 @@ function postRumors(req, res){
         }
     });
   } else if(want) {
-      promiseResult
+      postWant(userId, want)
+      .then(function(result){
+        res.render('chat', {id: result.id, rumors: result.rumors});
+      })
+      .catch(function(err){
+        console.log(err)
+      })
+    } else {
+    User.findOne({
+      id: userId
+    }, function(err, user) {
+      createRumor(userId, req.body.message, user.firstName)
       .then(function(result){
         res.render('chat', result);
       })
       .catch(function(err){
         console.log(err)
       })
-    } else {
-    createRumor(userId, req.body.message, req.user.firstName)
-    .then(function(result){
-      res.render('chat', result);
-    })
-    .catch(function(err){
-      console.log(err)
     })
   }
 }
@@ -435,11 +453,10 @@ function postWant(userId, want) {
     User.findOne({'id': userId}, function(err, userWithWant) {
       if (err) return reject(err);
       if (!userWithWant) return reject(err)
-      User.find({ nodeEndpoint: want.Endpoint }, function(err, userWithRumor) {
-        var rumorsToAdd = userWithRumor.rumors
-        .filter(function(rumor) {
+      User.findOne({endpoint: want.EndPoint }, function(err, userWithRumor) {
+        var rumorsToAdd = userWithRumor.rumors.filter(function(rumor) {
           var uuids = Object.keys(want.Want)
-          var messageIdParts = rumor.messageId.split(":");
+          var messageIdParts = rumor.Rumor.messageId.split(":");
           var rumorUuid = messageIdParts[0]
           var rumorSequence = messageIdParts[1]
           return rumorSequence > want.Want[rumorUuid];
@@ -447,7 +464,7 @@ function postWant(userId, want) {
         userWithWant.rumors = userWithWant.rumors.concat(rumorsToAdd);
         userWithWant.save(function(err) {
           if (err) return reject(err)
-          return resolve(rumorsToAdd)
+          return resolve(userWithWant)
         })
       })
     });
@@ -461,16 +478,16 @@ function postRumor(userId, rumor) {
       //dynamically add the rumor
       if (!user) return reject(err);
       var alreadyExists = user.rumors.filter(function(Rumor) {
-          return Rumor.messageId === rumor.messageId
+          return Rumor.Rumor.messageId === rumor.Rumor.messageId
         }).length > 0;
       if (!alreadyExists) {
         user.rumors.push(rumor)
         user.save(function(err) {
           if (err) return reject(err)
-          return resolve(rumor)
+          return resolve(user)
         })
       } else {
-        return resolve(rumor)
+        return resolve(user)
       }
     });
   });
@@ -479,17 +496,19 @@ function postRumor(userId, rumor) {
 function createRumor(userId, message) {
   return new Promise(function(resolve,reject){
     User.findOne({'id': userId}, function(err, user){
+      console.log("actually creating a rumor bb")
       var maxSequence = maxSequenceNumber(user.rumors, user.UUID);
       var messageId = user.UUID + ":" + (maxSequence + 1);
       var originator = user.firstName
-      user.rumors.push({
+      var rumor = {
         Rumor: { 
           messageId: messageId,
           originator: originator,
           text: message
         },
         EndPoint: user.endpoint
-      })
+      };
+      user.rumors = user.rumors.concat(rumor)
       user.save(function(err) {
         if (err) return reject(err);
         return resolve({id: user.id, rumors: user.rumors})
@@ -497,11 +516,10 @@ function createRumor(userId, message) {
     })
   })
 }
-
 function uniqueItems(duplicatesArr) {
   var arr = [];
   duplicatesArr.forEach(function(item) {
-    if(!arr.contains(item)) {
+    if(!arr.includes(item)) {
       arr.push(item);
     }
   })
@@ -509,10 +527,16 @@ function uniqueItems(duplicatesArr) {
 }
 
 function maxSequenceNumber(rumors, uuid) {
-  return rumors
-  .filter(function(rumor) { return rumor.messageId.split(":")[0] === uuid })
-  .map(function(rumor) { return parseInt(rumor.messageId.split(":")[1]) })
-  .reduce(function(a,b) { return Math.max(a,b); }, [])
+  if(rumors.length>0){
+     return rumors
+    .filter(function(rumor) { 
+      return rumor.Rumor.messageId.split(":")[0] === uuid })
+    .map(function(rumor) { return parseInt(rumor.Rumor.messageId.split(":")[1]) })
+    .reduce(function(a,b) { return Math.max(a,b); }, [])
+  }
+  else{
+    return -1;
+  }
 }
 function makeWant(user){
   var Want = {
@@ -520,44 +544,81 @@ function makeWant(user){
     "EndPoint": user.endpoint
   }
   uniqueItems(
-    user.rumors.map(function(rumor) { return parseInt(rumor.messageId.split(":")[0]) })
-  ).forEach(function(uuid) {
-    var maxSequenceNum = maxSequenceNumber(user.rumors, uuid)
-    Want.Want[uuid] = maxSequenceNum
+    user.rumors.map(function(rumor) { 
+      return rumor.Rumor.messageId.split(":")[0]})
+  ).forEach(function(UUID) {
+    console.log(UUID)
+    var maxSequenceNum = maxSequenceNumber(user.rumors, UUID)
+    Want.Want[UUID] = maxSequenceNum
   });
+  console.log(Want)
   return Want;
 }
 
-/*setInterval(function(){
+setInterval(function(){
   User.find({}, function(err, users) {
     users.forEach(function(user) {
       if (user.neighbors.length > 0 && user.rumors.length > 0) {
         var randomNeighborId = user.neighbors[getRandomInt(0,user.neighbors.length)]
         var neighborUser = users.filter(function(neighbor){
-          return neighborUser.id == randomNeighborId;
-        })
-        if (getRandomInt(0, 1) == 0) {
-          console.log(user);
+          if(neighbor.id == randomNeighborId) 
+            return neighbor;
+        })[0]
+        if (getRandomInt(0, 2) == 0) {
+          console.log("sending rumor")
           var randomRumor = user.rumors[getRandomInt(0, user.rumors.length)]
           if(randomRumor){
+            var post_data = JSON.stringify({
+                'Rumor' : randomRumor,
+            });
+            var options = {
+              host: "localhost",
+              port: 8081,
+              path: "https://localhost:8081" + neighborUser.endpoint,
+              method: 'POST',
+              headers: {
+                "Content-Type": "application/json",
+                "Content-Length": Buffer.byteLength(post_data)
+              }
+            };
+            process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
             //send an HTTP request to the endpoint
-            https.post(neighbor.endpoint, randomRumor, function(resp){
+            var post_req = https.request(options, function(resp){
               resp.on('error', function(err){
                 console.error(err)
               })
             })
-          } else {
-            // Prepare a want
-            var want = makeWant(user);
-            //send an HTTP request to the endpoint
-            https.post(neighbor.endpoint, want, function(resp){
-              resp.on('error', function(err){
-                console.error(err) 
-              })
-            })
+            post_req.write(post_data)
+            post_req.end();
           }
+        } else {
+          console.log("sending a want")
+          // Prepare a want
+          var want = makeWant(user);
+          var post_data = JSON.stringify({
+              'Want' : want,
+          });
+          var options = {
+            host: "localhost",
+            port: 8081,
+            path: "https://localhost:8081" + neighborUser.endpoint,
+            method: 'POST',
+            headers: {
+              "Content-Type": "application/json",
+              "Content-Length": Buffer.byteLength(post_data)
+            }
+          };
+          process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+          //send an HTTP request to the endpoint
+          var post_req = https.request(options, function(resp){
+            resp.on('error', function(err){
+              console.error(err)
+            })
+          })
+          post_req.write(post_data)
+          post_req.end();
         }
       }
     })
   })
-}, 3000);*/
+}, 3000);
