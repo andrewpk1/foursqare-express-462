@@ -595,7 +595,7 @@ setInterval(function(){
             var options = {
               host: neighborUser.endpoint.split(":")[0],
               port: 8081,
-              path: neighborUser.endpoint.split(":")[1],
+              path: ":" + neighborUser.endpoint.split(":")[1],
               method: 'POST',
               headers: {
                 "Content-Type": "application/json",
