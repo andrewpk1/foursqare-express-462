@@ -38,7 +38,8 @@ passport.deserializeUser(function(obj, done) {
 passport.use(new FoursquareStrategy({
     clientID: FOURSQUARE_CLIENT_ID,
     clientSecret: FOURSQUARE_CLIENT_SECRET,
-    callbackURL: "https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/auth/foursquare/callback"
+    callbackURL: "https://localhost:8081/auth/foursquare/callback"
+    //"https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/auth/foursquare/callback"
   },
   function(accessToken, refreshToken, profile, done) {
     var json = JSON.parse(profile._raw);
@@ -515,11 +516,12 @@ function createRumor(userId, message) {
       var rumor = {
         Rumor: { 
           messageID: messageId,
-          originator: originator,
-          text: message
+          Originator: originator,
+          Text: message
         },
         EndPoint: user.endpoint
       };
+      console.log(rumor)
       user.rumors = user.rumors.concat(rumor)
       user.save(function(err) {
         if (err) return reject(err);
@@ -579,8 +581,17 @@ setInterval(function(){
           var randomRumor = user.rumors[getRandomInt(0, user.rumors.length)]
           if(randomRumor){
             var post_data = JSON.stringify({
-                'Rumor' : randomRumor,
-            });
+                'Rumor' :
+                    { 
+                      Rumor: { 
+                        messageID: randomRumor.Rumor.messageID,
+                        Originator: randomRumor.Rumor.Originator,
+                        Text: randomRumor.Rumor.Text
+                      },
+                    EndPoint: user.endpoint
+                  }
+                });
+            };
             var options = {
               host: "localhost",
               port: 8081,
@@ -592,6 +603,7 @@ setInterval(function(){
               }
             };
             console.log(neighborUser.endpoint)
+            console.log(post_data)
             process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
             //send an HTTP request to the endpoint
             var post_req = https.request(options, function(resp){
@@ -601,8 +613,7 @@ setInterval(function(){
             })
             post_req.write(post_data)
             post_req.end();
-          }
-        } else {
+          } else {
           // Prepare a want
           var want = makeWant(user);
           var post_data = JSON.stringify({
