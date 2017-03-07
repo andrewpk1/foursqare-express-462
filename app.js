@@ -39,7 +39,7 @@ passport.deserializeUser(function(obj, done) {
 passport.use(new FoursquareStrategy({
     clientID: FOURSQUARE_CLIENT_ID,
     clientSecret: FOURSQUARE_CLIENT_SECRET,
-    callbackURL: "https://localhost:8081/auth/foursquare/callback"
+    callbackURL: "https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/auth/foursquare/callback"
     //"https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/auth/foursquare/callback"
   },
   function(accessToken, refreshToken, profile, done) {
@@ -64,7 +64,7 @@ passport.use(new FoursquareStrategy({
           UUID: uuid.v4(),
           seed : getRandomInt(0, 5) % 3 === 0,
           //seed: true,
-          endpoint: 'https://localhost:8081/Users/rumors/' + json.response.user.id,
+          endpoint: 'https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/Users/rumors/' + json.response.user.id,
           rumors: [],
           //now in the future searching on User.findOne({'facebook.id': profile.id } will match because of this next line
         })
@@ -80,7 +80,7 @@ passport.use(new FoursquareStrategy({
         if(!user.UUID){
           user.UUID = uuid.v4();
         }
-        user.endpoint = 'https://localhost:8081/Users/rumors/' + json.response.user.id;
+        user.endpoint = 'https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/Users/rumors/' + json.response.user.id;
         user.checkins = json.response.user.checkins;
         user.save(function(err){
           if(err) console.log(err);
