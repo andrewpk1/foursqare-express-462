@@ -48,7 +48,7 @@ var UserSchema = new mongoose.Schema({
 
 var User = mongoose.model('Users', UserSchema)
 
-/*User.remove({}, function(err) { 
+User.remove({}, function(err) { 
    console.log('collection removed') 
-});*/
+});
 module.exports = User;

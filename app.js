@@ -409,7 +409,7 @@ function postRumors(req, res){
           checkins: {},
           foursquare: {},
           Token: null,
-          UUID: rumor.Rumor.messageId.split(':')[0],
+          UUID: rumor.Rumor.messageID.split(':')[0],
           seed : getRandomInt(0, 5) % 3 === 0,
           //seed: true,
           endpoint: rumor.EndPoint,
@@ -421,11 +421,11 @@ function postRumors(req, res){
           console.log(newUser.seed)
           addNeighbor(newUser)
           .then(function(user2){
-            return done(null, newUser)
+            console.log("added user we haven't seen before")
           })
         })
         .catch(function(error){
-          return done(error)
+          console.log(error)
         })
       } else{
           postRumor(userId, rumor)
@@ -468,7 +468,7 @@ function postWant(userId, want) {
       User.findOne({endpoint: want.EndPoint }, function(err, userWithRumor) {
         var rumorsToAdd = userWithRumor.rumors.filter(function(rumor) {
           var uuids = Object.keys(want.Want)
-          var messageIdParts = rumor.Rumor.messageId.split(":");
+          var messageIdParts = rumor.Rumor.messageID.split(":");
           var rumorUuid = messageIdParts[0]
           var rumorSequence = messageIdParts[1]
           return rumorSequence > want.Want[rumorUuid];
@@ -490,7 +490,7 @@ function postRumor(userId, rumor) {
       //dynamically add the rumor
       if (!user) return reject(err);
       var alreadyExists = user.rumors.filter(function(Rumor) {
-          return Rumor.Rumor.messageId === rumor.Rumor.messageId
+          return Rumor.Rumor.messageID === rumor.Rumor.messageID
         }).length > 0;
       if (!alreadyExists) {
         user.rumors.push(rumor)
@@ -514,7 +514,7 @@ function createRumor(userId, message) {
       var originator = user.firstName
       var rumor = {
         Rumor: { 
-          messageId: messageId,
+          messageID: messageId,
           originator: originator,
           text: message
         },
@@ -528,6 +528,7 @@ function createRumor(userId, message) {
     })
   })
 }
+
 function uniqueItems(duplicatesArr) {
   var arr = [];
   duplicatesArr.forEach(function(item) {
@@ -542,8 +543,8 @@ function maxSequenceNumber(rumors, uuid) {
   if(rumors.length>0){
      return rumors
     .filter(function(rumor) { 
-      return rumor.Rumor.messageId.split(":")[0] === uuid })
-    .map(function(rumor) { return parseInt(rumor.Rumor.messageId.split(":")[1]) })
+      return rumor.Rumor.messageID.split(":")[0] === uuid })
+    .map(function(rumor) { return parseInt(rumor.Rumor.messageID.split(":")[1]) })
     .reduce(function(a,b) { return Math.max(a,b); }, [])
   }
   else{
@@ -557,9 +558,8 @@ function makeWant(user){
   }
   uniqueItems(
     user.rumors.map(function(rumor) { 
-      return rumor.Rumor.messageId.split(":")[0]})
+      return rumor.Rumor.messageID.split(":")[0]})
   ).forEach(function(UUID) {
-    console.log(UUID)
     var maxSequenceNum = maxSequenceNumber(user.rumors, UUID)
     Want.Want[UUID] = maxSequenceNum
   });
@@ -591,6 +591,7 @@ setInterval(function(){
                 "Content-Length": Buffer.byteLength(post_data)
               }
             };
+            console.log(neighborUser.endpoint)
             process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
             //send an HTTP request to the endpoint
             var post_req = https.request(options, function(resp){
