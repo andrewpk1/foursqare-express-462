@@ -38,7 +38,8 @@ passport.deserializeUser(function(obj, done) {
 passport.use(new FoursquareStrategy({
     clientID: FOURSQUARE_CLIENT_ID,
     clientSecret: FOURSQUARE_CLIENT_SECRET,
-    callbackURL: "https://ec2-54-86-70-147.compute-1.amazonaws.com:443/auth/foursquare/callback"
+    callbackURL: "https://localhost:8081/auth/foursquare/callback"
+    //"https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/auth/foursquare/callback"
   },
   function(accessToken, refreshToken, profile, done) {
     var json = JSON.parse(profile._raw);
@@ -62,7 +63,7 @@ passport.use(new FoursquareStrategy({
           UUID: uuid.v4(),
           seed : getRandomInt(0, 5) % 3 === 0,
           //seed: true,
-          endpoint: 'https://ec2-54-86-70-147.compute-1.amazonaws.com:443/Users/rumors/' + json.response.user.id,
+          endpoint: 'ec2-54-86-70-147.compute-1.amazonaws.com:8081/Users/rumors/' + json.response.user.id,
           rumors: [],
           //now in the future searching on User.findOne({'facebook.id': profile.id } will match because of this next line
         })
@@ -78,7 +79,7 @@ passport.use(new FoursquareStrategy({
         if(!user.UUID){
           user.UUID = uuid.v4();
         }
-        user.endpoint = 'https://ec2-54-86-70-147.compute-1.amazonaws.com:443/Users/rumors/' + json.response.user.id;
+        user.endpoint = 'ec2-54-86-70-147.compute-1.amazonaws.com:8081/Users/rumors/' + json.response.user.id;
         user.checkins = json.response.user.checkins;
         user.save(function(err){
           if(err) console.log(err);
@@ -122,8 +123,8 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session({secret: 'keyboard cat'}));
 app.use(express.static(__dirname + '/public'));
-var server = https.createServer(options, app).listen(443, function(){
-  console.log("Express server listening on port " + 443);
+var server = https.createServer(options, app).listen(8081, function(){
+  console.log("Express server listening on port " + 8081);
 });
 
 
@@ -593,7 +594,7 @@ setInterval(function(){
             };
             var options = {
               host: neighborUser.endpoint.split(":")[0],
-              port: 443,
+              port: 8081,
               path: neighborUser.endpoint.split(":")[1],
               method: 'POST',
               headers: {
@@ -621,8 +622,8 @@ setInterval(function(){
           });
           var options = {
             host: neighborUser.endpoint.split(":")[0],
-            port: 443,
-            path: neighborUser.endpoint.split(":")[1],
+            port: 8081,
+            path: ":" + neighborUser.endpoint.split(":")[1],
             method: 'POST',
             headers: {
               "Content-Type": "application/json",
