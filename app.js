@@ -63,11 +63,11 @@ passport.use(new FoursquareStrategy({
           UUID: uuid.v4(),
           seed : getRandomInt(0, 5) % 3 === 0,
           //seed: true,
-          endpoint: '/Users/rumors/' + json.response.user.id,
+          endpoint: 'https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/Users/rumors/' + json.response.user.id,
           rumors: [],
           //now in the future searching on User.findOne({'facebook.id': profile.id } will match because of this next line
         })
-        addNeighbor(user,done)
+        addNeighbor(user)
         .then(function(results){
           return done(null, user)
         })
@@ -79,7 +79,7 @@ passport.use(new FoursquareStrategy({
         if(!user.UUID){
           user.UUID = uuid.v4();
         }
-        user.endpoint = '/Users/'+ json.response.user.id + '/rumors';
+        user.endpoint = 'https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/Users/rumors/' + json.response.user.id;
         user.checkins = json.response.user.checkins;
         user.save(function(err){
           if(err) console.log(err);
@@ -152,34 +152,47 @@ app.get('/Users/rumors/:userId', function(req, res){
 });
 
 app.post('/Users/rumors/:userId', postRumors);
-app.post('/Users/rumors/addAnonymous', function(req, res){
-  console.log("creating new anonymous user");
-  user = new User({
-    id: null,
-    firstName: req.body.Name,
-    lastName: null,
-    checkins: {},
-    foursquare: {},
-    Token: null,
-    UUID: uuid.v4(),
-    seed : getRandomInt(0, 5) % 3 === 0,
-    //seed: true,
-    endpoint: req.body.endpoint,
-    rumors: [],
-  });
-  saveUser(user)
-  .then(function(newUser){
-    newUser.id = newUser._id;
-    console.log(newUser.seed)
-    addNeighbor(newUser,done)
-    .then(function(user2){
-      return done(null, newUser)
-    })
+
+app.get('/Users/addAnonymous', function(req,res){
+  res.render('addAnonymous')
+})
+
+app.post('/Users/addAnonymous', function(req, res){
+  User.findOne({'id' : 'abcsd1231-1-23-23-12341-4124'}, function(err, user) {
+    if(err) return done(err)
+    if(!user){
+      console.log("creating new anonymous user");
+      user = new User({
+        id: null,
+        firstName: req.body.Name,
+        lastName: null,
+        checkins: {},
+        foursquare: {},
+        Token: null,
+        UUID: uuid.v4(),
+        seed : getRandomInt(0, 5) % 3 === 0,
+        //seed: true,
+        endpoint: req.body.Endpoint,
+        rumors: [],
+      });
+      saveUser(user)
+      .then(function(newUser){
+        newUser.id = newUser._id;
+        console.log(newUser.seed)
+        addNeighbor(newUser)
+        .then(function(user2){
+          res.render('addAnonymous')
+        })
+        .catch(function(err){
+          console.log(err)
+        })
+      })
+      .catch(function(error){
+        console.log(error)
+      })
+    }
   })
-  .catch(function(error){
-    return done(error)
-  })
-}
+})
 
 app.get('/Users/account/:userId', ensureAuthenticated, function(req, res){
   var options = {
@@ -278,7 +291,7 @@ function ensureAuthenticated(req, res, next) {
   //res.redirect('/login')
 }
 
-function addNeighbor(newUser, done){
+function addNeighbor(newUser){
   return new Promise(function(resolve, reject) {
     if (newUser.seed) {
       // Put all the other seeds as its neighbors and give me to them as a neighbor
@@ -407,7 +420,7 @@ function postRumors(req, res){
         .then(function(newUser){
           newUser.id = newUser._id;
           console.log(newUser.seed)
-          addNeighbor(newUser,done)
+          addNeighbor(newUser)
           .then(function(user2){
             return done(null, newUser)
           })
@@ -551,7 +564,6 @@ function makeWant(user){
     var maxSequenceNum = maxSequenceNumber(user.rumors, UUID)
     Want.Want[UUID] = maxSequenceNum
   });
-  console.log(Want)
   return Want;
 }
 
@@ -565,7 +577,6 @@ setInterval(function(){
             return neighbor;
         })[0]
         if (getRandomInt(0, 2) == 0) {
-          console.log("sending rumor")
           var randomRumor = user.rumors[getRandomInt(0, user.rumors.length)]
           if(randomRumor){
             var post_data = JSON.stringify({
@@ -574,7 +585,7 @@ setInterval(function(){
             var options = {
               host: "localhost",
               port: 8081,
-              path: "https://localhost:8081" + neighborUser.endpoint,
+              path: neighborUser.endpoint,
               method: 'POST',
               headers: {
                 "Content-Type": "application/json",
@@ -592,7 +603,6 @@ setInterval(function(){
             post_req.end();
           }
         } else {
-          console.log("sending a want")
           // Prepare a want
           var want = makeWant(user);
           var post_data = JSON.stringify({
@@ -601,7 +611,7 @@ setInterval(function(){
           var options = {
             host: "localhost",
             port: 8081,
-            path: "https://localhost:8081" + neighborUser.endpoint,
+            path: neighborUser.endpoint,
             method: 'POST',
             headers: {
               "Content-Type": "application/json",
