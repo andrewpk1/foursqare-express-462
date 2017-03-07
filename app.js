@@ -11,7 +11,8 @@ var express = require('express')
   , User = require('./models/user_model.js')
   , https = require('https')
   , fs = require('fs')
-  , uuid = require('node-uuid');
+  , uuid = require('node-uuid')
+  , request = require('request');
 
 var FOURSQUARE_CLIENT_ID = "2YE3DQJGJ3HNVPUVAAHP1QMJX3ENVK5HX4ZDKIL5ARCB1VNJ"
 var FOURSQUARE_CLIENT_SECRET = "O2PWREEFRDL55ZZKF03NFWCQ1HVOT0NYJRIOBW0IVVA5W2X0";
@@ -63,7 +64,7 @@ passport.use(new FoursquareStrategy({
           UUID: uuid.v4(),
           seed : getRandomInt(0, 5) % 3 === 0,
           //seed: true,
-          endpoint: 'ec2-54-86-70-147.compute-1.amazonaws.com:8081/Users/rumors/' + json.response.user.id,
+          endpoint: 'https://localhost:8081/Users/rumors/' + json.response.user.id,
           rumors: [],
           //now in the future searching on User.findOne({'facebook.id': profile.id } will match because of this next line
         })
@@ -79,7 +80,7 @@ passport.use(new FoursquareStrategy({
         if(!user.UUID){
           user.UUID = uuid.v4();
         }
-        user.endpoint = 'ec2-54-86-70-147.compute-1.amazonaws.com:8081/Users/rumors/' + json.response.user.id;
+        user.endpoint = 'https://localhost:8081/Users/rumors/' + json.response.user.id;
         user.checkins = json.response.user.checkins;
         user.save(function(err){
           if(err) console.log(err);
@@ -394,6 +395,7 @@ function saveUser(user) {
 }
 
 function postRumors(req, res){
+  console.log(req.body)
   var rumor = req.body.Rumor;
   var want = req.body.Want;
   var userId = req.params.userId;
@@ -592,53 +594,38 @@ setInterval(function(){
                   }
                 });
             };
-            var options = {
-              host: neighborUser.endpoint.split(":")[0],
-              port: 8081,
-              path: ":" + neighborUser.endpoint.split(":")[1],
-              method: 'POST',
+            process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+            //send an HTTP request to the endpoint
+            request({
+              url: neighborUser.endpoint,
+              method: "POST",
+              body: post_data,
               headers: {
                 "Content-Type": "application/json",
                 "Content-Length": Buffer.byteLength(post_data)
               }
-            };
-            console.log(neighborUser.endpoint.split(":")[0])
-            console.log(neighborUser.endpoint.split(":")[1])
-            console.log(post_data)
-            process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
-            //send an HTTP request to the endpoint
-            var post_req = https.request(options, function(resp){
-              resp.on('error', function(err){
-                console.error(err)
-              })
-            })
-            post_req.write(post_data)
-            post_req.end();
+              }, function (error, response, body){
+                  //console.log(response);
+            });
           } else {
           // Prepare a want
           var want = makeWant(user);
           var post_data = JSON.stringify({
               'Want' : want,
           });
-          var options = {
-            host: neighborUser.endpoint.split(":")[0],
-            port: 8081,
-            path: ":" + neighborUser.endpoint.split(":")[1],
-            method: 'POST',
-            headers: {
-              "Content-Type": "application/json",
-              "Content-Length": Buffer.byteLength(post_data)
-            }
-          };
           process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
           //send an HTTP request to the endpoint
-          var post_req = https.request(options, function(resp){
-            resp.on('error', function(err){
-              console.error(err)
-            })
-          })
-          post_req.write(post_data)
-          post_req.end();
+          request({
+            url: neighborUser.endpoint,
+            method: "POST",   
+            body: post_data,
+            headers: {
+                "Content-Type": "application/json",
+                "Content-Length": Buffer.byteLength(post_data)
+              }
+            }, function (error, response, body){
+                //console.log(response);
+          });
         }
       }
     })
