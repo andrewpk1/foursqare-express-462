@@ -406,8 +406,8 @@ function postRumors(req, res){
       if (!user) {
         console.log("creating new user");
         user = new User({
-          id: null,
-          firstName: rumor.Rumor.originator,
+          id: userId,
+          firstName: rumor.Rumor.Originator,
           lastName: null,
           checkins: {},
           foursquare: {},
