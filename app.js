@@ -161,24 +161,32 @@ app.get('/Users/addAnonymous', function(req,res){
 app.post('/Users/addAnonymous', function(req, res){
   User.findOne({'id' : 'abcsd1231-1-23-23-12341-4124'}, function(err, user) {
     if(err) return done(err)
+    var ID = null;
+    console.log(req.body.Endpoint.split("Users/rumors/"))
+    if(req.body.Endpoint.split("Users/rumors/")[1]){
+      console.log("this is weak man")
+      ID = req.body.Endpoint.split("Users/rumors/")[1];
+    }
     if(!user){
       console.log("creating new anonymous user");
       user = new User({
-        id: null,
+        id: ID,
         firstName: req.body.Name,
-        lastName: null,
+        lastName: "",
         checkins: {},
         foursquare: {},
         Token: null,
         UUID: uuid.v4(),
-        seed : getRandomInt(0, 5) % 3 === 0,
+        seed : getRandomInt(0, 3) % 3 === 0,
         //seed: true,
         endpoint: req.body.Endpoint,
         rumors: [],
       });
       saveUser(user)
       .then(function(newUser){
-        newUser.id = newUser._id;
+        if(newUser.id == null){
+          newUser.id = newUser._id;
+        }
         console.log(newUser.seed)
         addNeighbor(newUser)
         .then(function(user2){
