@@ -499,6 +499,7 @@ function postWant(userId, want) {
 
 function postRumor(userId, rumor) {
   return new Promise(function(resolve, reject) {
+    console.log(userId)
     User.findOne({'id': userId}, function(err, user) {
       if (err) return reject(err);
       //dynamically add the rumor
