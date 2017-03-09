@@ -62,7 +62,7 @@ passport.use(new FoursquareStrategy({
           foursquare: profile._json,
           Token: accessToken,
           UUID: uuid.v4(),
-          seed : getRandomInt(0, 5) % 3 === 0,
+          seed : getRandomInt(0, 4) % 3 === 0,
           //seed: true,
           endpoint: 'https://ec2-54-86-70-147.compute-1.amazonaws.com:8081/Users/rumors/' + json.response.user.id,
           rumors: [],
@@ -164,7 +164,6 @@ app.post('/Users/addAnonymous', function(req, res){
     var ID = null;
     console.log(req.body.Endpoint.split("Users/rumors/"))
     if(req.body.Endpoint.split("Users/rumors/")[1]){
-      console.log("this is weak man")
       ID = req.body.Endpoint.split("Users/rumors/")[1];
     }
     if(!user){
@@ -177,7 +176,7 @@ app.post('/Users/addAnonymous', function(req, res){
         foursquare: {},
         Token: null,
         UUID: uuid.v4(),
-        seed : getRandomInt(0, 3) % 3 === 0,
+        seed : getRandomInt(0, 4) % 3 === 0,
         //seed: true,
         endpoint: req.body.Endpoint,
         rumors: [],
@@ -403,7 +402,6 @@ function saveUser(user) {
 }
 
 function postRumors(req, res){
-  console.log(req.body)
   var rumor = req.body.Rumor;
   var want = req.body.Want;
   var userId = req.params.userId;
@@ -412,23 +410,24 @@ function postRumors(req, res){
       endpoint: rumor.EndPoint
     }, function(err, user) {
       if (!user) {
-        console.log("creating new user");
+        console.log("received post from unknown user.");
         user = new User({
           id: userId,
           firstName: rumor.Rumor.Originator,
-          lastName: null,
+          lastName: "",
           checkins: {},
           foursquare: {},
           Token: null,
           UUID: rumor.Rumor.messageID.split(':')[0],
-          seed : getRandomInt(0, 5) % 3 === 0,
-          //seed: true,
+          seed : false,
           endpoint: rumor.EndPoint,
           rumors: [rumor],
         });
         saveUser(user)
         .then(function(newUser){
-          newUser.id = newUser._id;
+          if(!newUser.id){
+            newUser.id = newUser._id;
+          }
           console.log(newUser.seed)
           addNeighbor(newUser)
           .then(function(user2){
@@ -602,6 +601,7 @@ setInterval(function(){
                   }
                 });
             };
+            console.log(post_data);
             process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
             //send an HTTP request to the endpoint
             request({
@@ -611,7 +611,7 @@ setInterval(function(){
               headers: {
                 "Content-Type": "application/json",
                 "Content-Length": Buffer.byteLength(post_data)
-              }
+                }
               }, function (error, response, body){
                   //console.log(response);
             });
