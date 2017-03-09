@@ -407,7 +407,6 @@ function postRumors(req, res){
   var rumor = req.body.Rumor;
   var want = req.body.Want;
   var userId = req.params.userId;
-  console.log("got something in a post")
   if(rumor){
     User.findOne({
       endpoint: rumor.EndPoint
@@ -442,6 +441,7 @@ function postRumors(req, res){
           console.log(error)
         })
       } else{
+          console.log(rumor)
           postRumor(userId, rumor)
           .then(function(result){
               res.render('chat', {id: result.id, rumors: result.rumors});
