@@ -607,6 +607,8 @@ setInterval(function(){
             };
             process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
             //send an HTTP request to the endpoint
+            console.log(neighborUser.endpoint)
+            console.log(post_data)
             request({
               url: neighborUser.endpoint,
               method: "POST",
