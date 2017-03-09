@@ -407,7 +407,7 @@ function postRumors(req, res){
   var rumor = req.body.Rumor;
   var want = req.body.Want;
   var userId = req.params.userId;
-  console("got something in a post")
+  console.log("got something in a post")
   if(rumor){
     User.findOne({
       endpoint: rumor.EndPoint
@@ -435,6 +435,7 @@ function postRumors(req, res){
           addNeighbor(newUser)
           .then(function(user2){
             console.log("added user we haven't seen before")
+            res.status(200).send("OK")
           })
         })
         .catch(function(error){
