@@ -341,10 +341,12 @@ function addNeighbor(newUser){
         if (err) return reject(err);
         if (!users) return reject("Unable to get users.")
         
+        console.log(users);
         // Add one of the seeds as its neighbor
         if(users.length > 0){
           var index = getRandomInt(0, users.length);
           var user = users[index]
+          console.log(newUser)
           newUser.neighbors.push(user.id)
           // The seed user will have this new user as a neighbor
           user.neighbors.push(newUser.id)
@@ -530,7 +532,6 @@ function createRumor(userId, message) {
         },
         EndPoint: user.endpoint
       };
-      console.log(rumor)
       user.rumors = user.rumors.concat(rumor)
       user.save(function(err) {
         if (err) return reject(err);
@@ -601,7 +602,6 @@ setInterval(function(){
                   }
                 });
             };
-            console.log(post_data);
             process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
             //send an HTTP request to the endpoint
             request({
